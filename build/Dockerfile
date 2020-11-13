@@ -1,5 +1,5 @@
 ARG VERSION=V5.2-dev
-FROM rainbond/rbd-app-ui:${VERSION}
+FROM yangk/rbd-app-ui:${VERSION}
 ADD dist /dist
 RUN mv /dist/index.html /app/ui/www/templates/index.html && \
   rm -rf /app/ui/www/static/dists/* && \
