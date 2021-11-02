@@ -8,12 +8,12 @@ if [ -z "$VERSION" ]; then
 fi
 
 IMAGE_DOMAIN=${IMAGE_DOMAIN:-docker.io}
-IMAGE_NAMESPACE=${IMAGE_NAMESPACE:-rainbond}
+IMAGE_NAMESPACE=${IMAGE_NAMESPACE:-yangk}
 IMAGE_NAME="${IMAGE_DOMAIN}/${IMAGE_NAMESPACE}/rainbond-ui:$VERSION"
 
 BUILD_RBD_APP_UI=${BUILD_RBD_APP_UI:-true}
 DOMESTIC_BASE_NAME=${DOMESTIC_BASE_NAME:-'registry.cn-hangzhou.aliyuncs.com'}
-DOMESTIC_NAMESPACE=${DOMESTIC_NAMESPACE:-'goodrain'}
+DOMESTIC_NAMESPACE=${DOMESTIC_NAMESPACE:-'yangkaa'}
 BASE_VERSION=V5.3
 
 echo "$DOCKER_PASSWORD" | docker login ${IMAGE_DOMAIN} -u "$DOCKER_USERNAME" --password-stdin
@@ -27,7 +27,7 @@ if [ ${BUILD_RBD_APP_UI} == "true" ]; then
 
 	if [ ${DOMESTIC_BASE_NAME} ]; then
 		newTag="${DOMESTIC_BASE_NAME}/${DOMESTIC_NAMESPACE}/rbd-app-ui:${VERSION}"
-		docker tag "rainbond/rbd-app-ui:$VERSION" "${newTag}"
+		docker tag "${IMAGE_DOMAIN}/${IMAGE_NAMESPACE}/rbd-app-ui:$VERSION" "${newTag}"
 		docker login -u "$DOMESTIC_DOCKER_USERNAME" -p "$DOMESTIC_DOCKER_PASSWORD" ${DOMESTIC_BASE_NAME}
 		docker push "${newTag}"
 	fi
