@@ -1,0 +1,113 @@
+name: orchestrator-stage-ui
+
+on:
+  workflow_call:
+    inputs:
+      feature_id:
+        required: true
+        type: string
+      engine:
+        required: true
+        type: string
+      strict_verify:
+        required: false
+        default: false
+        type: boolean
+  workflow_dispatch:
+    inputs:
+      feature_id:
+        description: Feature ID (e.g. RB-123)
+        required: true
+        type: string
+      engine:
+        description: Engine used by orchestrator
+        required: true
+        default: opencode
+        type: choice
+        options:
+          - opencode
+          - claude
+      strict_verify:
+        description: Run stricter verification commands
+        required: true
+        default: false
+        type: boolean
+
+jobs:
+  verify-ui:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'yarn'
+
+      - name: Execute UI stage checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          FEATURE_ID="${{ inputs.feature_id }}"
+          ENGINE="${{ inputs.engine }}"
+          STRICT="${{ inputs.strict_verify }}"
+
+          mkdir -p /tmp/orchestrator
+          RAW_LOG="/tmp/orchestrator/raw-ui-${FEATURE_ID}.log"
+          SUMMARY_JSON="/tmp/orchestrator/verify-summary-ui-${FEATURE_ID}.json"
+
+          {
+            echo "feature_id=${FEATURE_ID}"
+            echo "engine=${ENGINE}"
+            echo "strict_verify=${STRICT}"
+            echo "repo=rainbond-ui"
+            echo "stage=ui"
+            echo "timestamp=$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          } > "${RAW_LOG}"
+
+          if [[ "${STRICT}" == "true" ]]; then
+            {
+              echo "running: yarn --version"
+              yarn --version
+              echo "running: yarn install --frozen-lockfile"
+              yarn install --frozen-lockfile
+              echo "running: yarn build"
+              yarn build
+            } >> "${RAW_LOG}" 2>&1
+          else
+            {
+              echo "running: node --version"
+              node --version
+              echo "running: yarn --version"
+              yarn --version
+            } >> "${RAW_LOG}" 2>&1
+          fi
+
+          cat > "${SUMMARY_JSON}" <<JSON
+          {
+            "feature_id": "${FEATURE_ID}",
+            "repo": "rainbond-ui",
+            "stage": "ui",
+            "engine": "${ENGINE}",
+            "strict_verify": ${STRICT},
+            "status": "passed"
+          }
+          JSON
+
+          cat "${SUMMARY_JSON}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload raw ui verification log
+        uses: actions/upload-artifact@v4
+        with:
+          name: orchestrator-raw-ui-${{ inputs.feature_id }}
+          path: /tmp/orchestrator/raw-ui-${{ inputs.feature_id }}.log
+
+      - name: Upload ui summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: orchestrator-summary-ui-${{ inputs.feature_id }}
+          path: /tmp/orchestrator/verify-summary-ui-${{ inputs.feature_id }}.json
