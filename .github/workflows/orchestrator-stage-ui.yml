@@ -41,6 +41,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          repository: yangkaa/rainbond-ui
+          ref: workflow
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
