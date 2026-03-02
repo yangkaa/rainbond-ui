@@ -52,9 +52,10 @@ jobs:
           cache: 'yarn'
 
       - name: Execute UI stage checks
+        id: verify_ui
         shell: bash
         run: |
-          set -euo pipefail
+          set -uo pipefail
           FEATURE_ID="${{ inputs.feature_id }}"
           ENGINE="${{ inputs.engine }}"
           STRICT="${{ inputs.strict_verify }}"
@@ -70,8 +71,11 @@ jobs:
             echo "repo=rainbond-ui"
             echo "stage=ui"
             echo "timestamp=$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            echo "pwd=$(pwd)"
+            ls -la
           } > "${RAW_LOG}"
 
+          rc=0
           if [[ "${STRICT}" == "true" ]]; then
             {
               echo "running: yarn --version"
@@ -80,14 +84,19 @@ jobs:
               yarn install --frozen-lockfile
               echo "running: yarn build"
               yarn build
-            } >> "${RAW_LOG}" 2>&1
+            } >> "${RAW_LOG}" 2>&1 || rc=$?
           else
             {
               echo "running: node --version"
               node --version
               echo "running: yarn --version"
               yarn --version
-            } >> "${RAW_LOG}" 2>&1
+            } >> "${RAW_LOG}" 2>&1 || rc=$?
+          fi
+
+          status="passed"
+          if [[ "${rc}" -ne 0 ]]; then
+            status="failed"
           fi
 
           cat > "${SUMMARY_JSON}" <<JSON
@@ -97,20 +106,35 @@ jobs:
             "stage": "ui",
             "engine": "${ENGINE}",
             "strict_verify": ${STRICT},
-            "status": "passed"
+            "status": "${status}"
           }
           JSON
 
+          echo "rc=${rc}" >> "$GITHUB_OUTPUT"
           cat "${SUMMARY_JSON}" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload raw ui verification log
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: orchestrator-raw-ui-${{ inputs.feature_id }}
           path: /tmp/orchestrator/raw-ui-${{ inputs.feature_id }}.log
 
       - name: Upload ui summary
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: orchestrator-summary-ui-${{ inputs.feature_id }}
           path: /tmp/orchestrator/verify-summary-ui-${{ inputs.feature_id }}.json
+
+      - name: Print raw ui log to summary
+        if: always()
+        shell: bash
+        run: |
+          echo '```text' >> "$GITHUB_STEP_SUMMARY"
+          cat "/tmp/orchestrator/raw-ui-${{ inputs.feature_id }}.log" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail when ui checks failed
+        if: steps.verify_ui.outputs.rc != '0'
+        run: exit 1
