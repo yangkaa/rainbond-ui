@@ -1,0 +1,118 @@
+@import '~antd/lib/style/themes/default.less';
+
+.wrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #fff;
+}
+
+.canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.linkModeBar {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 16px;
+  background: #e6f7ff;
+  border: 1px solid #91d5ff;
+  border-radius: 4px;
+  color: @text-color;
+  font-size: @rbd-auxiliary-size;
+}
+
+.ctxMenu {
+  position: absolute;
+  z-index: 20;
+  min-width: 150px;
+  padding: 4px 0;
+  background: #fff;
+  border-radius: 6px;
+  box-shadow: @rbd-card-shadow;
+}
+
+.ctxTitle {
+  padding: 8px 16px 6px;
+  color: @rbd-label-color;
+  font-size: @rbd-auxiliary-size;
+  border-bottom: 1px solid @border-color-split;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ctxItem {
+  display: flex;
+  align-items: center;
+  padding: 7px 16px;
+  color: @text-color;
+  font-size: 13px;
+  cursor: pointer;
+
+  &:hover {
+    background: @item-hover-bg;
+  }
+}
+
+.ctxIcon {
+  margin-right: 8px;
+}
+
+.ctxDanger {
+  color: @error-color;
+}
+
+:global {
+  .g6-rb-tooltip {
+    min-width: 170px;
+    padding: 10px 14px;
+    background: #fff;
+    border-radius: 6px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    font-size: 12px;
+
+    .tt-title {
+      margin-bottom: 6px;
+      color: rgba(0, 0, 0, 0.85);
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    .tt-row {
+      display: flex;
+      justify-content: space-between;
+      line-height: 20px;
+
+      span {
+        color: rgba(0, 0, 0, 0.45);
+      }
+
+      b {
+        font-weight: 500;
+        color: rgba(0, 0, 0, 0.75);
+      }
+    }
+
+    .tt-net {
+      margin-top: 6px;
+      color: #1890ff;
+    }
+  }
+
+  .g6-component-tooltip {
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+  }
+}
