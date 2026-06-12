@@ -22,6 +22,7 @@ import {
   updateRolling
 } from '../../services/app';
 import { createTopologyGraph, fitGraph } from './graph';
+import { applyTopologyLayout } from './layout';
 import { transformTopology, GATEWAY_ID } from './transform';
 import NodeContextMenu from './menu';
 import styles from './index.less';
@@ -78,12 +79,14 @@ class TopologyG6 extends React.Component {
       this.fetchMonitor();
     }, POLL_INTERVAL);
     window.addEventListener('resize', this.handleResize);
+    window.addEventListener('hashchange', this.handleHashChange);
   }
 
   componentWillUnmount() {
     this.mounted = false;
     clearInterval(this.pollTimer);
     window.removeEventListener('resize', this.handleResize);
+    window.removeEventListener('hashchange', this.handleHashChange);
     if (this.graph && !this.graph.get('destroyed')) {
       this.graph.destroy();
     }
@@ -112,7 +115,23 @@ class TopologyG6 extends React.Component {
 
     graph.on('canvas:click', () => {
       this.setState({ contextMenu: null });
-      if (this.state.linkMode) this.exitLinkMode();
+      if (this.state.linkMode) {
+        this.exitLinkMode();
+        return;
+      }
+      // 点击空白画布：退出聚焦态（同时关闭组件抽屉，保持 URL 一致）
+      if (this.getFocusAliasFromUrl()) {
+        const { dispatch } = this.props;
+        const teamName = globalUtil.getCurrTeamName();
+        const regionName = globalUtil.getCurrRegionName();
+        const appID = globalUtil.getAppID();
+        dispatch(
+          routerRedux.push(
+            `/team/${teamName}/region/${regionName}/apps/${appID}/overview${this.getTopoSuffix('?')}`
+          )
+        );
+      }
+      this.clearFocus();
     });
 
     graph.on('node:contextmenu', e => {
@@ -144,6 +163,123 @@ class TopologyG6 extends React.Component {
     });
   };
 
+  /* ---------------- 点击聚焦（URL ?type=components&componentID= 驱动） ---------------- */
+
+  /** 保留当前 URL 上的 topo 调试参数，避免跳转后切回 iframe 版 */
+  getTopoSuffix = (prefix = '&') => {
+    const m = (window.location.hash || '').match(/[?&](topo=[^&]+)/);
+    return m ? `${prefix}${m[1]}` : '';
+  };
+
+  getFocusAliasFromUrl = () => {
+    const hash = window.location.hash || '';
+    const qIndex = hash.indexOf('?');
+    if (qIndex === -1) return null;
+    const query = hash.slice(qIndex + 1);
+    if (!/(^|&)type=components(&|$)/.test(query)) return null;
+    const m = query.match(/(?:^|&)componentID=([^&]+)/);
+    return m ? decodeURIComponent(m[1]) : null;
+  };
+
+  handleHashChange = () => {
+    this.syncFocusFromUrl();
+  };
+
+  /**
+   * 根据 URL 同步聚焦态：
+   * - 选中节点：浅蓝光晕；相连依赖边：粗紫 + 箭头；其余节点/边淡出
+   * - 聚焦目标变化时平移画布，让焦点链路落在抽屉左侧可见区
+   * - 轮询 changeData 后会重调本方法，聚焦态不丢失
+   */
+  syncFocusFromUrl = () => {
+    const graph = this.graph;
+    if (!graph || graph.get('destroyed') || !this.rendered) return;
+    const alias = this.getFocusAliasFromUrl();
+    if (!alias) {
+      this.clearFocus();
+      return;
+    }
+    const node = graph
+      .getNodes()
+      .find(n => (n.getModel().raw || {}).service_alias === alias);
+    if (!node) {
+      this.clearFocus();
+      return;
+    }
+    const focusId = node.getID();
+    const neighborIds = { [focusId]: true };
+    graph.getEdges().forEach(edge => {
+      const m = edge.getModel();
+      const related = m.source === focusId || m.target === focusId;
+      graph.setItemState(edge, 'related', related);
+      graph.setItemState(edge, 'dim', !related);
+      if (related) {
+        neighborIds[m.source] = true;
+        neighborIds[m.target] = true;
+      }
+    });
+    graph.getNodes().forEach(n => {
+      graph.setItemState(n, 'selected', n.getID() === focusId);
+      graph.setItemState(n, 'dim', !neighborIds[n.getID()]);
+    });
+    const aliasChanged = this.focusedAlias !== alias;
+    this.focusedAlias = alias;
+    if (aliasChanged) this.panFocusIntoView(neighborIds);
+  };
+
+  clearFocus = () => {
+    const graph = this.graph;
+    if (!graph || graph.get('destroyed')) return;
+    graph.getEdges().forEach(edge => {
+      graph.setItemState(edge, 'related', false);
+      graph.setItemState(edge, 'dim', false);
+    });
+    graph.getNodes().forEach(n => {
+      graph.setItemState(n, 'selected', false);
+      graph.setItemState(n, 'dim', false);
+    });
+    if (this.focusedAlias) {
+      this.focusedAlias = null;
+      fitGraph(graph);
+    }
+  };
+
+  /** 抽屉约占右侧 60%，把焦点节点及其邻居整体缩放/平移到左侧可见区 */
+  panFocusIntoView = neighborIds => {
+    const graph = this.graph;
+    if (!graph || graph.get('destroyed')) return;
+    const width = graph.get('width');
+    const height = graph.get('height');
+    const models = graph
+      .getNodes()
+      .filter(n => neighborIds[n.getID()])
+      .map(n => n.getModel());
+    if (!models.length) return;
+
+    const xs = models.map(m => m.x);
+    const ys = models.map(m => m.y);
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+
+    // 可见区：抽屉占窗口右侧约 60%，且画布在侧边栏之后起始，
+    // 实际可见的画布宽度比例不足 1/3，留出节点尺寸与文案边距
+    const visibleW = width * 0.27;
+    const visibleH = height * 0.8;
+    const margin = 130;
+    const fitZoom = Math.min(
+      visibleW / (maxX - minX + margin),
+      visibleH / (maxY - minY + margin)
+    );
+    const zoom = Math.min(graph.getZoom(), Math.max(0.5, fitZoom));
+    graph.zoomTo(zoom);
+
+    // 注：G6 4.8 的 translate 动画参数会导致终点矩阵不准，这里直接平移
+    const center = graph.getCanvasByPoint((minX + maxX) / 2, (minY + maxY) / 2);
+    graph.translate(width * 0.16 - center.x, height * 0.45 - center.y);
+  };
+
   handleResize = () => {
     const container = this.containerRef;
     if (!this.graph || this.graph.get('destroyed') || !container) return;
@@ -168,13 +304,16 @@ class TopologyG6 extends React.Component {
           formatMessage({ id: 'topology.Topological.label' })
         );
         this.applyMonitor(data);
+        applyTopologyLayout(data);
         if (isFirst || !this.rendered) {
           this.graph.data(data);
           this.graph.render();
           this.rendered = true;
         } else {
+          // 布局是确定性的：数据未变时坐标不变，轮询刷新不会跳动
           this.graph.changeData(data);
         }
+        this.syncFocusFromUrl();
       }
     });
   };
@@ -222,7 +361,7 @@ class TopologyG6 extends React.Component {
     if (raw.isGateway) {
       dispatch(
         routerRedux.push(
-          `/team/${teamName}/region/${regionName}/apps/${appID}/overview?type=gateway`
+          `/team/${teamName}/region/${regionName}/apps/${appID}/overview?type=gateway${this.getTopoSuffix()}`
         )
       );
       return;
@@ -240,7 +379,7 @@ class TopologyG6 extends React.Component {
     }
     dispatch(
       routerRedux.push(
-        `/team/${teamName}/region/${regionName}/apps/${appID}/overview?type=components&componentID=${raw.service_alias}&tab=overview`
+        `/team/${teamName}/region/${regionName}/apps/${appID}/overview?type=components&componentID=${raw.service_alias}&tab=overview${this.getTopoSuffix()}`
       )
     );
   };

@@ -75,15 +75,22 @@ export function createTopologyGraph(container) {
         }
       ]
     },
-    layout: {
-      type: 'dagre',
-      rankdir: 'TB',
-      nodesep: 30,
-      ranksep: 36
-    },
+    // 坐标由 ./layout.js 预计算（连通子图分层 + 孤立节点网格），不使用内置布局
     defaultEdge: {
       type: 'line',
       style: { stroke: COLORS.edge, lineWidth: 1 }
+    },
+    edgeStateStyles: {
+      related: {
+        stroke: COLORS.edgeFocus,
+        lineWidth: 2.4,
+        opacity: 1,
+        endArrow: {
+          path: G6.Arrow.triangle(7, 9, 0),
+          fill: COLORS.edgeFocus
+        }
+      },
+      dim: { opacity: 0.15 }
     }
   });
   return graph;

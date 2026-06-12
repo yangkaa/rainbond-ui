@@ -6,7 +6,8 @@ export const COLORS = {
   hexPending: '#1890ff',
   cloud: '#4aa8f8', // 网关云朵蓝
   centerDot: '#262626',
-  edge: '#b8bcc4'
+  edge: '#b8bcc4',
+  edgeFocus: '#6a6e94' // 聚焦态依赖边（粗紫灰 + 箭头）
 };
 
 // 组件状态 → 视觉主题

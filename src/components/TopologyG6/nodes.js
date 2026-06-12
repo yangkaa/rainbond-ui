@@ -89,9 +89,11 @@ function applyNodeStates(name, value, item) {
   const plusSign = group.find(s => s.get('name') === 'plus-sign');
   const linkable = item.hasState('linkable');
   const hover = item.hasState('hover');
+  const selected = item.hasState('selected');
 
-  if (name === 'hover' || name === 'linkable') {
-    if (halo) halo.attr('opacity', hover || linkable ? 1 : 0);
+  if (name === 'hover' || name === 'linkable' || name === 'selected') {
+    // 选中态复用 hover 浅蓝光晕，且持续显示
+    if (halo) halo.attr('opacity', hover || linkable || selected ? 1 : 0);
     const showPlus = linkable;
     if (plusCircle) plusCircle.attr('opacity', showPlus ? 1 : 0);
     if (plusSign) plusSign.attr('opacity', showPlus ? 1 : 0);
@@ -101,6 +103,10 @@ function applyNodeStates(name, value, item) {
     const keyShape = item.get('keyShape');
     keyShape.attr('shadowBlur', value ? 14 : 0);
     keyShape.attr('shadowColor', value ? 'rgba(24,144,255,0.45)' : 'transparent');
+  }
+  if (name === 'dim') {
+    // 无关节点整体淡出
+    group.attr('opacity', value ? 0.18 : 1);
   }
 }
 
