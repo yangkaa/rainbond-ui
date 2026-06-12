@@ -97,6 +97,8 @@ class TopologyG6 extends React.Component {
     if (!container) return;
     const graph = createTopologyGraph(container);
     this.graph = graph;
+    // 调试/自动化测试句柄
+    window.__RBD_TOPOLOGY_G6__ = graph;
 
     graph.on('node:mouseenter', e => graph.setItemState(e.item, 'hover', true));
     graph.on('node:mouseleave', e => graph.setItemState(e.item, 'hover', false));

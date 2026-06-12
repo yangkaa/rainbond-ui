@@ -13,11 +13,12 @@ export function transformTopology(bean = {}, gatewayLabel = '网关') {
   const components = bean.json_data || {};
   const relations = bean.json_svg || {};
 
+  // 注意：不设置 label 字段，节点文案由自定义 shape 绘制，
+  // 否则 G6 single-node 的默认 update 会在节点中心重复绘制一份。
   const nodes = Object.values(components).map(c => ({
     id: c.service_id,
     type: 'rb-hexagon',
-    raw: c,
-    label: c.service_cname
+    raw: c
   }));
 
   const edges = [];
@@ -38,8 +39,7 @@ export function transformTopology(bean = {}, gatewayLabel = '网关') {
         service_cname: gatewayLabel,
         isGateway: true,
         cur_status: 'running'
-      },
-      label: gatewayLabel
+      }
     });
     internetNodes.forEach(c => {
       edges.push({ source: GATEWAY_ID, target: c.service_id });
