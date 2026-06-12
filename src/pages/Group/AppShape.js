@@ -12,7 +12,9 @@ const G6_FLAG_KEY = 'rainbond:topology-g6';
  */
 export function isTopologyG6Enabled() {
   try {
-    const search = window.location.search || '';
+    const hash = window.location.hash || '';
+    const hashQuery = hash.indexOf('?') >= 0 ? hash.slice(hash.indexOf('?')) : '';
+    const search = (window.location.search || '') + hashQuery;
     if (/[?&]topo=g6(&|$)/.test(search)) return true;
     if (/[?&]topo=iframe(&|$)/.test(search)) return false;
     return window.localStorage.getItem(G6_FLAG_KEY) === 'true';
